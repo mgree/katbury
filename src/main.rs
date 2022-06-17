@@ -38,17 +38,17 @@ fn rules() -> Vec<Rewrite<KAT, ()>> {
         rewrite!("ba-dist-l"; "(and ?a (or ?b ?c))" <=> "(and (or ?a ?b) (or ?a ?c))"),
         rewrite!("ba-dist-r"; "(and (or ?a ?b) ?c)" <=> "(and (or ?a ?c) (or ?b ?c))"),
         // boolean algebra (ba laws)
-        rewrite!("ba-plus-dist"; "(or ?a (and ?b ?c))" <=> "(and (or ?a ?b) (or ?a ?c))"),
+        rewrite!("ba-or-dist"; "(or ?a (and ?b ?c))" <=> "(and (or ?a ?b) (or ?a ?c))"),
         // test congruence
         rewrite!("ba-sub-ka-zero"; "(test 0)" <=> "0"),
         rewrite!("ba-sub-ka-one"; "(test 1)" <=> "1"),
         rewrite!("ba-sub-ka-par"; "(test (or ?a ?b))" <=> "(par (test ?a) (test ?b))"),
         rewrite!("ba-sub-ka-seq"; "(test (and ?a ?b))" <=> "(seq (test ?a) (test ?b))"),
 
-        vec![rewrite!("ka-plus-assoc"; "(par ?p (par ?q ?r))" => "(par (par ?p ?q) ?r)"),
-             rewrite!("ka-plus-comm"; "(par ?p ?q)" => "(par ?q ?p)"),
-             rewrite!("ka-plus-zero"; "(par ?p 0)" => "?p"),
-             rewrite!("ka-plus-idem"; "(par ?p ?p)" => "?p"),
+        vec![rewrite!("ka-par-assoc"; "(par ?p (par ?q ?r))" => "(par (par ?p ?q) ?r)"),
+             rewrite!("ka-par-comm"; "(par ?p ?q)" => "(par ?q ?p)"),
+             rewrite!("ka-par-zero"; "(par ?p 0)" => "?p"),
+             rewrite!("ka-par-idem"; "(par ?p ?p)" => "?p"),
              rewrite!("ka-seq-one"; "(seq (test 1) ?p)" => "?p"),
              rewrite!("ka-one-seq"; "(seq ?p (test 1))" => "?p"),
              rewrite!("ka-seq-zero"; "(seq (test 0) ?p)" => "(test 0)"),
@@ -58,26 +58,48 @@ fn rules() -> Vec<Rewrite<KAT, ()>> {
              // KA-LFP-R     p + qr <= q implies pr* <= q
              multi_rewrite!("ka-lfp-r"; "?q = (par (par ?p (seq ?q ?r)) ?q)" => "?q = (par (seq ?p (star ?r)) ?q)"),
              // boolean algebra (copies of ka laws)
-             rewrite!("ba-plus-assoc"; "(or ?a (or ?b ?r))" => "(or (or ?a ?b) ?r)"),
-             rewrite!("ba-plus-comm"; "(or ?a ?b)" => "(or ?b ?a)"),
-             rewrite!("ba-plus-zero"; "(or ?a 0)" => "?a"),
-             rewrite!("ba-plus-idem"; "(or ?a ?a)" => "?a"),
+             rewrite!("ba-or-assoc"; "(or ?a (or ?b ?r))" => "(or (or ?a ?b) ?r)"),
+             rewrite!("ba-or-comm"; "(or ?a ?b)" => "(or ?b ?a)"),
+             rewrite!("ba-or-zero"; "(or ?a 0)" => "?a"),
+             rewrite!("ba-or-idem"; "(or ?a ?a)" => "?a"),
              rewrite!("ba-and-one"; "(and 1 ?a)" => "?a"),
              rewrite!("ba-one-and"; "(and ?a 1)" => "?a"),
              rewrite!("ba-and-zero"; "(and 0 ?a)" => "0"),
              rewrite!("ba-zero-and"; "(and ?a 0)" => "0"),
              // boolean algebra (ba laws)
-             rewrite!("ba-plus-one"; "(or ?a 1)" => "1"),
+             rewrite!("ba-or-one"; "(or ?a 1)" => "1"),
              rewrite!("ba-excl-mid"; "(or ?a (not ?a))" => "1"),
-             rewrite!("ba-seq-comm"; "(and ?a ?b)" => "(and ?b ?a)"),
+             rewrite!("ba-and-comm"; "(and ?a ?b)" => "(and ?b ?a)"),
              rewrite!("ba-contra"; "(and ?a (not ?a))" => "0"),
-             rewrite!("ba-seq-idem"; "(and ?a ?a)" => "?a"),
+             rewrite!("ba-and-idem"; "(and ?a ?a)" => "?a"),
         ],
     ].concat()
 }
 
 egg::test_fn! { star_test, rules(),
-  "(star (test alpha))" => 
-  "(star (test alpha))", 
+  "(star (test alpha))" =>
+  "(star (test alpha))",
   "(par (test 1) (seq (test alpha) (star (test alpha))))",
-  "(test 1)" }
+  "(test 1)" 
+}
+
+egg::test_fn! {#[ignore] denesting, rules(),
+  "(star (par p q))" =>
+  "(star (par p q))",
+  "(seq (star p) (star (seq q (star p))))" 
+}
+
+egg::test_fn! {#[ignore] denesting_l, rules(),
+    "(par (star (par p q)) (seq (star p) (star (seq q (star p)))))" =>
+    "(seq (star p) (star (seq q (star p)))))" 
+}
+
+egg::test_fn! {denesting_r, rules(),
+  "(par (star (par p q)) (seq (star p) (star (seq q (star p)))))" =>
+  "(star (par p q))" 
+}
+
+egg::test_fn! { sliding, rules(),
+  "(seq p (star (seq q p)))" =>
+  "(seq (star (seq p q)) p)"
+}
