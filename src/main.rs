@@ -90,8 +90,41 @@ egg::test_fn! {#[ignore] denesting, rules(),
 }
 
 egg::test_fn! {#[ignore] denesting_l, rules(),
-    "(par (star (par p q)) (seq (star p) (star (seq q (star p)))))" =>
-    "(seq (star p) (star (seq q (star p)))))" 
+  "(par (star (par p q)) (seq (star p) (star (seq q (star p)))))" =>
+  "(seq (star p) (star (seq q (star p)))))" 
+}
+
+// 1 + (p+q) \cdot p^*\cdot(q \cdot p^*)^*
+// \le 
+// p^* \cdot (q \cdot p^*)^*
+egg::test_fn! { #[ignore] denest_l_unrolled, rules(),
+  "(par (par (test 1) (seq (par p q) (seq (star p) (star (seq q (star p)))))) (seq (star p) (star (seq q (star p)))))" =>
+  "(seq (star p) (star (seq q (star p))))"
+}
+
+egg::test_fn! { denesting_l_a, rules(),
+  "(par (test 1) (seq (star p) (star (seq q (star p)))))" =>
+  "(seq (star p) (star (seq q (star p))))"
+}
+
+egg::test_fn! { denest_l_b, rules(),
+  "(par (seq p (seq (star p) (star (seq q (star p))))) (seq (star p) (star (seq q (star p)))))" =>
+  "(seq (star p) (star (seq q (star p))))"
+}
+
+egg::test_fn! { denest_l_c1, rules(),
+  "(par (seq q (seq (star p) (star (seq q (star p))))) (star (seq q (star p))))" =>
+  "(star (seq q (star p))))"
+}
+
+egg::test_fn! { denest_l_c2, rules(),
+  "(par (star (seq q (star p))) (seq (star p) (star (seq q (star p)))))" =>
+  "(seq (star p) (star (seq q (star p))))"
+}
+
+egg::test_fn! { denest_l_c, rules(),
+  "(par (seq q (seq (star p) (star (seq q (star p))))) (star (seq q (star p))))" =>
+  "(star (seq q (star p))))"
 }
 
 egg::test_fn! {denesting_r, rules(),
