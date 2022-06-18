@@ -30,15 +30,15 @@ jobs:
         uses: actions/upload-artifact@v2
         if: contains(matrix.os, 'macos')
         with:
-          name: ffs.macos
-          path: target/release/ffs
+          name: katbury.macos
+          path: target/release/katbury
 
       - name: Upload Linux release build
         uses: actions/upload-artifact@v2
         if: contains(matrix.os, 'ubuntu')
         with:
-          name: ffs.linux
-          path: target/release/ffs            
+          name: katbury.linux
+          path: target/release/katbury            
 
 
         
