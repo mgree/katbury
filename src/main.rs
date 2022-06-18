@@ -1,9 +1,60 @@
-use std::time::Duration;
+use std::{num::ParseFloatError, str::FromStr, time::Duration};
 
 use egg::*;
 
+use clap::Parser;
+
+fn try_parse_secs(s: &str) -> Result<Duration, ParseFloatError> {
+    let f = f32::from_str(s)?;
+    Ok(Duration::from_secs_f32(f))
+}
+
+/// Simple program to greet a person
+#[derive(Parser, Debug)]
+#[clap(author, version, about, long_about = None)]
+struct Args {
+    /// Term to rewrite
+    #[clap(value_parser)]
+    terms: Vec<String>,
+
+    #[clap(long, default_value = "5.0", parse(try_from_str = try_parse_secs))]
+    time_limit: Duration,
+
+    #[clap(long, default_value_t = 30)]
+    iter_limit: usize,
+
+    #[clap(long, default_value_t = 10_000)]
+    node_limit: usize,
+
+    #[clap(long, action)]
+    explanations: bool,
+}
+
 fn main() {
-    println!("Hello, world!");
+    let args = Args::parse();
+
+    let mut runner = Runner::default()
+        .with_time_limit(args.time_limit)
+        .with_iter_limit(args.iter_limit);
+
+    runner = if args.explanations {
+        runner.with_explanations_enabled()
+    } else {
+        runner
+    };
+
+    for s in args.terms {
+        let term: RecExpr<KAT> = s.parse().unwrap();
+        runner = runner.with_expr(&term);
+    }
+
+    let runner = runner.run(&rules());
+
+    let extractor = Extractor::new(&runner.egraph, AstSize);
+
+    let (_best_cost, best_expr) = extractor.find_best(runner.roots[0]);
+    runner.print_report();
+    println!("best result: {}", best_expr);
 }
 
 define_language! {
@@ -102,7 +153,7 @@ egg::test_fn! { star_test, rules(),
   "(star (test alpha))" =>
   "(star (test alpha))",
   "(par (test 1) (seq (test alpha) (star (test alpha))))",
-  "(test 1)" 
+  "(test 1)"
 }
 
 egg::test_fn! { #[ignore] star_star, rules(),
@@ -118,7 +169,7 @@ egg::test_fn! {#[ignore] denesting, rules(),
     .with_explanations_enabled(),
   "(star (par p q))" =>
   "(star (par p q))",
-  "(seq (star p) (star (seq q (star p))))" 
+  "(seq (star p) (star (seq q (star p))))"
 }
 
 egg::test_fn! {#[ignore] denesting_swap, rules(),
@@ -148,11 +199,11 @@ egg::test_fn! {#[ignore] denesting_l, rules(),
             .with_node_limit(100_000)
             .with_explanations_enabled(),
   "(par (star (par p q)) (seq (star p) (star (seq q (star p)))))" =>
-  "(seq (star p) (star (seq q (star p)))))" 
+  "(seq (star p) (star (seq q (star p)))))"
 }
 
 // 1 + (p+q) \cdot p^*\cdot(q \cdot p^*)^*
-// \le 
+// \le
 // p^* \cdot (q \cdot p^*)^*
 egg::test_fn! { denest_l_unrolled, rules(),
   runner = Runner::new(Default::default())
@@ -191,7 +242,7 @@ egg::test_fn! { denest_l_c, rules(),
 
 egg::test_fn! { #[ignore] denesting_r, rules(),
   "(par (star (par p q)) (seq (star p) (star (seq q (star p)))))" =>
-  "(star (par p q))" 
+  "(star (par p q))"
 }
 
 egg::test_fn! { #[ignore] sliding_ltr, rules(),
