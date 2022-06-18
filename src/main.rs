@@ -105,6 +105,11 @@ egg::test_fn! { star_test, rules(),
   "(test 1)" 
 }
 
+egg::test_fn! { star_star, rules(),
+  "(star (star pi))" =>
+  "(star pi)"
+}
+
 egg::test_fn! {#[ignore] denesting, rules(),
   runner = Runner::new(Default::default())
     .with_time_limit(Duration::from_secs(30))
