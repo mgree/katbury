@@ -25,6 +25,7 @@ jobs:
         run: |
           cargo build --verbose --all --release
           cargo test
+          cargo test --ignored || echo FAILURES ALLOWED
         
       - name: Upload macOS release build
         uses: actions/upload-artifact@v2

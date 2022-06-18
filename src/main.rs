@@ -31,8 +31,8 @@ fn rules() -> Vec<Rewrite<KAT, ()>> {
         // bidirctional rules
         // which of these do we really want to be bidirectional?
         rewrite!("ka-seq-assoc"; "(seq ?p (seq ?q ?r))" <=> "(seq (seq ?p ?q) ?r)"),
-        rewrite!("ka-dist-l"; "(seq ?p (par ?q ?r))" <=> "(seq (par ?p ?q) (par ?p ?r))"),
-        rewrite!("ka-dist-r"; "(seq (par ?p ?q) ?r)" <=> "(seq (par ?p ?r) (par ?q ?r))"),
+        rewrite!("ka-dist-l"; "(seq ?p (par ?q ?r))" <=> "(par (seq ?p ?q) (seq ?p ?r))"),
+        rewrite!("ka-dist-r"; "(seq (par ?p ?q) ?r)" <=> "(par (seq ?p ?r) (seq ?q ?r))"),
         rewrite!("ka-unroll-l"; "(par (test 1) (seq ?p (star ?p)))" <=> "(star ?p)"),
         rewrite!("ka-unroll-r"; "(par (test 1) (seq (star ?p) ?p))" <=> "(star ?p)"),
         // boolean algebra (copy of ka laws, not bothering with * laws)
@@ -105,7 +105,7 @@ egg::test_fn! { star_test, rules(),
   "(test 1)" 
 }
 
-egg::test_fn! { star_star, rules(),
+egg::test_fn! { #[ignore] star_star, rules(),
   "(star (star pi))" =>
   "(star pi)"
 }
@@ -154,7 +154,7 @@ egg::test_fn! {#[ignore] denesting_l, rules(),
 // 1 + (p+q) \cdot p^*\cdot(q \cdot p^*)^*
 // \le 
 // p^* \cdot (q \cdot p^*)^*
-egg::test_fn! { #[ignore] denest_l_unrolled, rules(),
+egg::test_fn! { denest_l_unrolled, rules(),
   runner = Runner::new(Default::default())
             .with_time_limit(Duration::from_secs(30))
             .with_iter_limit(100)
@@ -162,22 +162,6 @@ egg::test_fn! { #[ignore] denest_l_unrolled, rules(),
             .with_explanations_enabled(),
   "(par (par (test 1) (seq (par p q) (seq (star p) (star (seq q (star p)))))) (seq (star p) (star (seq q (star p)))))" =>
   "(seq (star p) (star (seq q (star p))))"
-}
-
-egg::test_fn! { #[ignore] denest_l_unrolled_debugging, rules(),
-    runner = Runner::new(Default::default())
-    .with_time_limit(Duration::from_secs(30))
-    .with_iter_limit(100)
-    .with_node_limit(100_000)
-    .with_explanations_enabled(),
-  "(par (star (par p q)) (seq (star p) (star (seq q (star p)))))" =>
-/*  "(par (par 
-          (test 1) 
-          (seq (par p q) 
-               (seq (star p) 
-                    (star (seq q (star p))))))
-        (seq (star p) (star (seq q (star p)))))", */
-  "(par q (par p (star p)))"
 }
 
 egg::test_fn! { denesting_l_a, rules(),
@@ -205,17 +189,17 @@ egg::test_fn! { denest_l_c, rules(),
   "(star (seq q (star p))))"
 }
 
-egg::test_fn! {denesting_r, rules(),
+egg::test_fn! { #[ignore] denesting_r, rules(),
   "(par (star (par p q)) (seq (star p) (star (seq q (star p)))))" =>
   "(star (par p q))" 
 }
 
-egg::test_fn! { sliding_ltr, rules(),
+egg::test_fn! { #[ignore] sliding_ltr, rules(),
   "(seq p (star (seq q p)))" =>
   "(seq (star (seq p q)) p)"
 }
 
-egg::test_fn! { sliding_rtl, rules(),
+egg::test_fn! { #[ignore] sliding_rtl, rules(),
   "(seq (star (seq p q)) p)" =>
   "(seq p (star (seq q p)))"
 }
