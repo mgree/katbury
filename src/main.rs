@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use egg::*;
 
 fn main() {
@@ -40,14 +42,12 @@ fn rules() -> Vec<Rewrite<KAT, ()>> {
         // boolean algebra (ba laws)
         rewrite!("ba-or-dist"; "(or ?a (and ?b ?c))" <=> "(and (or ?a ?b) (or ?a ?c))"),
         // test congruence
-        rewrite!("ba-sub-ka-zero"; "(test 0)" <=> "0"),
-        rewrite!("ba-sub-ka-one"; "(test 1)" <=> "1"),
         rewrite!("ba-sub-ka-par"; "(test (or ?a ?b))" <=> "(par (test ?a) (test ?b))"),
         rewrite!("ba-sub-ka-seq"; "(test (and ?a ?b))" <=> "(seq (test ?a) (test ?b))"),
 
         vec![rewrite!("ka-par-assoc"; "(par ?p (par ?q ?r))" => "(par (par ?p ?q) ?r)"),
              rewrite!("ka-par-comm"; "(par ?p ?q)" => "(par ?q ?p)"),
-             rewrite!("ka-par-zero"; "(par ?p 0)" => "?p"),
+             rewrite!("ka-par-zero"; "(par ?p (test 0))" => "?p"),
              rewrite!("ka-par-idem"; "(par ?p ?p)" => "?p"),
              rewrite!("ka-seq-one"; "(seq (test 1) ?p)" => "?p"),
              rewrite!("ka-one-seq"; "(seq ?p (test 1))" => "?p"),
@@ -58,7 +58,7 @@ fn rules() -> Vec<Rewrite<KAT, ()>> {
              // KA-LFP-R     p + qr <= q implies pr* <= q
              multi_rewrite!("ka-lfp-r"; "?q = (par (par ?p (seq ?q ?r)) ?q)" => "?q = (par (seq ?p (star ?r)) ?q)"),
              // boolean algebra (copies of ka laws)
-             rewrite!("ba-or-assoc"; "(or ?a (or ?b ?r))" => "(or (or ?a ?b) ?r)"),
+             rewrite!("ba-or-assoc"; "(or ?a (or ?b ?c))" => "(or (or ?a ?b) ?c)"),
              rewrite!("ba-or-comm"; "(or ?a ?b)" => "(or ?b ?a)"),
              rewrite!("ba-or-zero"; "(or ?a 0)" => "?a"),
              rewrite!("ba-or-idem"; "(or ?a ?a)" => "?a"),
@@ -72,8 +72,30 @@ fn rules() -> Vec<Rewrite<KAT, ()>> {
              rewrite!("ba-and-comm"; "(and ?a ?b)" => "(and ?b ?a)"),
              rewrite!("ba-contra"; "(and ?a (not ?a))" => "0"),
              rewrite!("ba-and-idem"; "(and ?a ?a)" => "?a"),
+             rewrite!("not-zero"; "(not 0)" => "1"),
+             rewrite!("not-one"; "(not 1)" => "0"),
         ],
     ].concat()
+}
+
+egg::test_fn! { not_zero, rules(),
+    "(test (not 0))" =>
+    "(test 1)",
+}
+
+egg::test_fn! { not_one, rules(),
+    "(test (not 1))" =>
+    "(test 0)",
+}
+
+egg::test_fn! { #[ignore] double_neg, rules(),
+  "(test (not (not a)))" =>
+  "(test a)"
+}
+
+egg::test_fn! { one_le_star, rules(),
+  "(par (test 1) (star p))" =>
+  "(star p)"
 }
 
 egg::test_fn! { star_test, rules(),
@@ -84,12 +106,42 @@ egg::test_fn! { star_test, rules(),
 }
 
 egg::test_fn! {#[ignore] denesting, rules(),
+  runner = Runner::new(Default::default())
+    .with_time_limit(Duration::from_secs(30))
+    .with_iter_limit(100)
+    .with_node_limit(100_000)
+    .with_explanations_enabled(),
   "(star (par p q))" =>
   "(star (par p q))",
   "(seq (star p) (star (seq q (star p))))" 
 }
 
+egg::test_fn! {#[ignore] denesting_swap, rules(),
+    runner = Runner::new(Default::default())
+    .with_time_limit(Duration::from_secs(30))
+    .with_iter_limit(100)
+    .with_node_limit(100_000)
+    .with_explanations_enabled(),
+  "(seq (star p) (star (seq q (star p))))" =>
+  "(star (par p q))"
+}
+
+egg::test_fn! {#[ignore] denesting_swap_bogus, rules(),
+    runner = Runner::new(Default::default())
+    .with_time_limit(Duration::from_secs(30))
+    .with_iter_limit(100)
+    .with_node_limit(100_000)
+    .with_explanations_enabled(),
+  "(seq (star p) (star (seq q (star p))))" =>
+  "(par (star p) q)"
+}
+
 egg::test_fn! {#[ignore] denesting_l, rules(),
+  runner = Runner::new(Default::default())
+            .with_time_limit(Duration::from_secs(30))
+            .with_iter_limit(100)
+            .with_node_limit(100_000)
+            .with_explanations_enabled(),
   "(par (star (par p q)) (seq (star p) (star (seq q (star p)))))" =>
   "(seq (star p) (star (seq q (star p)))))" 
 }
@@ -98,8 +150,29 @@ egg::test_fn! {#[ignore] denesting_l, rules(),
 // \le 
 // p^* \cdot (q \cdot p^*)^*
 egg::test_fn! { #[ignore] denest_l_unrolled, rules(),
+  runner = Runner::new(Default::default())
+            .with_time_limit(Duration::from_secs(30))
+            .with_iter_limit(100)
+            .with_node_limit(100_000)
+            .with_explanations_enabled(),
   "(par (par (test 1) (seq (par p q) (seq (star p) (star (seq q (star p)))))) (seq (star p) (star (seq q (star p)))))" =>
   "(seq (star p) (star (seq q (star p))))"
+}
+
+egg::test_fn! { #[ignore] denest_l_unrolled_debugging, rules(),
+    runner = Runner::new(Default::default())
+    .with_time_limit(Duration::from_secs(30))
+    .with_iter_limit(100)
+    .with_node_limit(100_000)
+    .with_explanations_enabled(),
+  "(par (star (par p q)) (seq (star p) (star (seq q (star p)))))" =>
+/*  "(par (par 
+          (test 1) 
+          (seq (par p q) 
+               (seq (star p) 
+                    (star (seq q (star p))))))
+        (seq (star p) (star (seq q (star p)))))", */
+  "(par q (par p (star p)))"
 }
 
 egg::test_fn! { denesting_l_a, rules(),
@@ -132,7 +205,12 @@ egg::test_fn! {denesting_r, rules(),
   "(star (par p q))" 
 }
 
-egg::test_fn! { sliding, rules(),
+egg::test_fn! { sliding_ltr, rules(),
   "(seq p (star (seq q p)))" =>
   "(seq (star (seq p q)) p)"
+}
+
+egg::test_fn! { sliding_rtl, rules(),
+  "(seq (star (seq p q)) p)" =>
+  "(seq p (star (seq q p)))"
 }
