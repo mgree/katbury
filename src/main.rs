@@ -123,8 +123,11 @@ fn rules() -> Vec<Rewrite<KAT, ()>> {
              rewrite!("ba-and-comm"; "(and ?a ?b)" => "(and ?b ?a)"),
              rewrite!("ba-contra"; "(and ?a (not ?a))" => "0"),
              rewrite!("ba-and-idem"; "(and ?a ?a)" => "?a"),
+             // KAT proof requires invention
              rewrite!("not-zero"; "(not 0)" => "1"),
              rewrite!("not-one"; "(not 1)" => "0"),
+             // saving ourselves trouble
+             multi_rewrite!("ka-le-le"; "?r = (par ?q ?r), ?q = (par ?q ?r)" => "?r = ?q"),
         ],
     ].concat()
 }
@@ -253,4 +256,13 @@ egg::test_fn! { #[ignore] sliding_ltr, rules(),
 egg::test_fn! { #[ignore] sliding_rtl, rules(),
   "(seq (star (seq p q)) p)" =>
   "(seq p (star (seq q p)))"
+}
+
+egg::test_fn! { star_star_le_star, rules(),
+  "(par (star (star pi)) (star pi))" =>
+  "(star pi)"
+}
+
+egg::test_fn! { star_le_star_star, rules(),
+  "(par (star (star pi)) (star pi))" => "(star (star pi))"  
 }
