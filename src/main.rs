@@ -28,12 +28,18 @@ struct Args {
 
     #[clap(long, action)]
     explanations: bool,
+
+    #[clap(long, action)]
+    guess_invariants: bool,
+
+    #[clap(long, action)]
+    dot: bool,
 }
 
 fn main() {
     let args = Args::parse();
 
-    let mut runner = Runner::default()
+    let mut runner: Runner<KAT, ()> = Runner::default()
         .with_time_limit(args.time_limit)
         .with_iter_limit(args.iter_limit);
 
@@ -43,18 +49,84 @@ fn main() {
         runner
     };
 
-    for s in args.terms {
-        let term: RecExpr<KAT> = s.parse().unwrap();
-        runner = runner.with_expr(&term);
+    let terms: Vec<RecExpr<KAT>> = args.terms.iter().map(|s| s.parse().unwrap()).collect();
+
+    for t in terms.iter() {
+        runner = runner.with_expr(t);
     }
+
+    runner.egraph.rebuild();
+
+    if args.guess_invariants {
+        let len = runner.roots.len();
+        let mut pars = Vec::with_capacity(len * len - 1);
+
+        for i1 in 0..len - 1 {
+            for i2 in i1 + 1..len {
+                pars.push(KAT::Par([runner.roots[i1], runner.roots[i2]]));
+            }
+        }
+
+        let _ids = pars
+            .into_iter()
+            .map(|t| runner.egraph.add(t))
+            .collect::<Vec<_>>();
+        runner.egraph.rebuild();
+    }
+
+    // TODO hooks to show progress
 
     let runner = runner.run(&rules());
 
     let extractor = Extractor::new(&runner.egraph, AstSize);
 
-    let (_best_cost, best_expr) = extractor.find_best(runner.roots[0]);
-    runner.print_report();
-    println!("best result: {}", best_expr);
+    eprintln!("{}", runner.report());
+
+    // calculate equivalence classes
+    let mut equivs: Vec<(Id, Vec<usize>)> = Vec::new();
+    for (idx, id) in runner.roots.iter().enumerate() {
+        let canonical_id = runner.egraph.find(*id);
+
+        let mut found = false;
+        for (eq_id, idxs) in equivs.iter_mut() {
+            if eq_id == &canonical_id {
+                found = true;
+                idxs.push(idx);
+                break;
+            }
+        }
+
+        if !found {
+            equivs.push((canonical_id, vec![idx]));
+        }
+    }
+
+    eprintln!(
+        "found {} equivalence class{}",
+        equivs.len(),
+        if equivs.len() == 1 { "" } else { "es" }
+    );
+
+    for (i, (canonical_id, equiv)) in equivs.iter().enumerate() {
+        let (_cost, canonical_expr) = extractor.find_best(*canonical_id);
+        eprintln!("class {}: {}", i + 1, canonical_expr);
+
+        // if canonical representative is the singleton original term,
+        // no need to print more info
+        if equiv.len() == 1 && terms[equiv[0]] == canonical_expr {
+            continue;
+        }
+
+        for idx in equiv {
+            eprintln!("  {}", terms[*idx]);
+        }
+    }
+
+    if args.dot {
+        println!("{}", runner.egraph.dot());
+    }
+
+    std::process::exit(if equivs.len() == 1 { 0 } else { 1 });
 }
 
 define_language! {
@@ -126,7 +198,7 @@ fn rules() -> Vec<Rewrite<KAT, ()>> {
              // KAT proof requires invention
              rewrite!("not-zero"; "(not 0)" => "1"),
              rewrite!("not-one"; "(not 1)" => "0"),
-             // saving ourselves trouble
+             // saving ourselves trouble... except this is just transitivity
              multi_rewrite!("ka-le-le"; "?r = (par ?q ?r), ?q = (par ?q ?r)" => "?r = ?q"),
         ],
     ].concat()
@@ -264,5 +336,5 @@ egg::test_fn! { star_star_le_star, rules(),
 }
 
 egg::test_fn! { star_le_star_star, rules(),
-  "(par (star (star pi)) (star pi))" => "(star (star pi))"  
+  "(par (star (star pi)) (star pi))" => "(star (star pi))"
 }
