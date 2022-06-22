@@ -41,6 +41,7 @@ fn main() {
 
     let mut runner: Runner<KAT, ()> = Runner::default()
         .with_time_limit(args.time_limit)
+        .with_node_limit(args.node_limit)
         .with_iter_limit(args.iter_limit);
 
     runner = if args.explanations {
